@@ -22,6 +22,7 @@ static char g_myCharString[7]={0,0,0,0,0,0,0};
 
 
 
+//calculate factorial and number of traling 0s
 int factorialTrailing0s(int n)
 {
   int c,fact = 1, numZeros=0;
