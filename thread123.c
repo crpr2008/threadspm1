@@ -21,6 +21,26 @@ static char g_myChar=EOF;
 static char g_myCharString[7]={0,0,0,0,0,0,0};
 
 
+
+int factorialTrailing0s(int n)
+{
+  int c,fact = 1, numZeros=0;
+
+  for (c = 1; c <= n; c++)
+    fact = fact * c;
+
+  printf("Factorial of %d = %d\n", n, fact);
+
+  while (fact%10 == 0)
+  {
+	  numZeros++;
+	  fact = fact/10;
+  }
+  printf("NumZeros = %d\n", numZeros);
+
+  return 0;
+}
+
 void * showEyeC(void *p)
 {
     int i=0;
@@ -28,20 +48,20 @@ void * showEyeC(void *p)
     printf("start loop with %d \r\n",i);
 	while (TRUE)
 	{
-		if (i%2)
+//		if (i%2)
         {
 			//print the last number of characters read before the animation.
 			//for performance, dont include the i%2 operation in the lock
 			pthread_mutex_lock(&g_tLock);
             printf("%d/ nc = %d",i,g_numChars);
         }
-        else
+/*        else
         {
     		//print the last number of characters read before the animation
 			//for performance, dont include the i%2 operation in the lock
     		pthread_mutex_lock(&g_tLock);
             printf("\\%d nc = %d",i,g_numChars);
-        }
+        }*/
 		pthread_mutex_unlock(&g_tLock);
         fflush(stdout);    //needed in ubuntu, otherwise stdout is not updated on the printf
         printf("\r      \r"); //clear the line
@@ -98,6 +118,7 @@ void * Spell(void *p)
 		{
 			bSearching=FALSE;
 		}
+
 	}
 	return 0;
 }
@@ -135,12 +156,14 @@ int main (int argc, char * argv[])
 {
     FILE *fp=0;
     FILE *fp2=0;
+    FILE *fpg=0;
     pthread_t myThreadVar;
     pthread_t myThreadVar2;
+    char governor[10];
 
-    if (argc<3)
+    if (argc<4)
     {
-       printf("threads123 - usage : infilename outfilename 1 (to enable debug prints)\n");
+       printf("threads123 - usage : infilename outfilename numbertorotate\n");
        return FALSE;
     }
 
@@ -148,15 +171,16 @@ int main (int argc, char * argv[])
     fp = fopen(argv[1],"r");
     printf("opening file %s\n", argv[2]);
     fp2 = fopen(argv[2],"a+");
+    printf("opening file governor\n");
+    fpg = fopen("/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor","a+");
 
-    if (fp && fp2)
+    if (fp && fp2 && fpg)
     {
        printf("success opening files %s and %s\n", argv[1],argv[2]);
-       if (argv[3] != NULL)
-       {
-           pthread_create(&myThreadVar,NULL,showEyeC,atoi(argv[3]));
-           pthread_create(&myThreadVar2,NULL,Spell,NULL);
-       }
+       fgets(governor,10, fpg);
+       printf("scaling governor is %s",governor);
+       pthread_create(&myThreadVar,NULL,showEyeC,atoi(argv[3]));
+       pthread_create(&myThreadVar2,NULL,Spell,NULL);
        do
        {
     	  g_myChar = fgetc(fp);
@@ -177,6 +201,7 @@ int main (int argc, char * argv[])
      		    g_myChar=='g' )
      		{
      			pthread_cond_signal(&g_Cond);
+//     		    printf("crivera - 0x%2X, rotated  = 0x%2X\n",g_myChar,rotateBits(g_myChar));//just to add more cpu utilization
      		}
      		pthread_mutex_unlock(&g_tLockCVar);
 
@@ -188,6 +213,7 @@ int main (int argc, char * argv[])
 
        fclose(fp);
        fclose(fp2);
+       fclose(fpg);
     }
     else if ( !fp )
     {
@@ -199,6 +225,11 @@ int main (int argc, char * argv[])
        printf("failed to open file %s\n", argv[2]);
        return FALSE;
     }
+    else if ( !fpg )
+    {
+       printf("failed to open file scaling_governor\n");
+       return FALSE;
+    }
 
     if ( argv[3] != NULL )
     {
@@ -206,7 +237,8 @@ int main (int argc, char * argv[])
         pthread_cancel(myThreadVar2);
         printf("\nThreads terminated\n");
     }
-    printf("\r\r done with %s. numChars = %d. string = %s\n", argv[1],g_numChars,g_myCharString);
+    printf("\r\r done with %s. numChars = %d.\n", argv[1],g_numChars);
     printf("rotated byte = 0x%2X\n",rotateBits(atoi(argv[3])));
+    factorialTrailing0s(atoi(argv[3]));
     return TRUE;
 }
